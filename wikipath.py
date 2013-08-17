@@ -2,25 +2,75 @@
 
 import json
 from urllib.request import urlopen
+from urllib.parse import quote
 
 
-def get_links(name, plcontinue=False):
-    url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=links&pllimit=500&plnamespace=0&titles=%s' % name
+class Node():
+    def __init__(self, name, cost=1, parent=None):
+        self.name = name
+        self.cost = cost
+        self.parent = parent
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __str__(self):
+        return self.name
+
+
+def get_links(node, plcontinue=False):
+    print(node)
+    url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=links&pllimit=500&plnamespace=0&titles=%s' % quote(str(node))
     # if more than 500 results were returned, get the rest of them.
     if plcontinue:
-        url += '&plcontinue=%s' % plcontinue
+        url += '&plcontinue=%s' % quote(plcontinue)
     data = json.loads(urlopen(url).read().decode())
     # we don't have the pageid, so we just pop the first page from pages.
-    pagelist = data['query']['pages'].popitem()[1]['links']
+    pagelist = data['query']['pages'].popitem()[1]
+    if 'links' in pagelist:
+        pagelist = pagelist['links']
+    else:
+        return []
     links = [page['title'] for page in pagelist]
     if 'query-continue' in data:
-        links += get_links(name, data['query-continue']['links']['plcontinue'])
-    return links
+        links += get_links(node, data['query-continue']['links']['plcontinue'])
+    if plcontinue:
+        return links
+    else:
+        return [Node(link, node.cost+1, node) for link in links]
+
+
+def get_path(node):
+    path = " -> %s" % node
+    while node.parent:
+        path = " -> %s" % node + path
+    return path
+
+
+def find_path(start, end):
+    closedlist = []
+    openlist = [start]
+    while openlist:
+        current = openlist.pop()
+        closedlist.append(current)
+        if current == end:
+            return get_path(current)
+        for link in get_links(current):
+            if link in closedlist:
+                continue
+            elif link in openlist:
+                if current.cost + 1 < link.cost:
+                    openlist[link].parent = current
+                    openlist[link].cost = current.cost + 1
+            elif link.cost < 5:
+                openlist.append(link)
 
 
 def main():
-    print(get_links("Albert_Einstein"))
-    print(get_links("Fox"))
+    start = Node("Fox")
+    end = Node("Dog", None)
+    path = find_path(start, end)
+    print(path)
 
 if __name__ == "__main__":
         main()
