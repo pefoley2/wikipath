@@ -20,7 +20,7 @@ class Node():
 
 def get_links(node, plcontinue=False):
     print(node)
-    url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=links&pllimit=500&plnamespace=0&titles=%s' % quote(str(node))
+    url = 'http://en.wikipedia.org/w/api.php?action=query&format=json&prop=links&pllimit=500&plnamespace=0&titles=%s' % quote(str(node))
     # if more than 500 results were returned, get the rest of them.
     if plcontinue:
         url += '&plcontinue=%s' % quote(plcontinue)
@@ -33,7 +33,8 @@ def get_links(node, plcontinue=False):
         return []
     links = [page['title'] for page in pagelist]
     if 'query-continue' in data:
-        links += get_links(node, data['query-continue']['links']['plcontinue'])
+        pass
+        #links += get_links(node, data['query-continue']['links']['plcontinue'])
     if plcontinue:
         return links
     else:
@@ -41,34 +42,32 @@ def get_links(node, plcontinue=False):
 
 
 def get_path(node):
-    path = " -> %s" % node
+    path = []
     while node.parent:
-        path = " -> %s" % node + path
-    return path
+        path.append(str(node))
+        node = node.parent
+    path.append(str(node))
+    return " -> ".join(reversed(path))
 
 
 def find_path(start, end):
     closedlist = []
     openlist = [start]
     while openlist:
-        current = openlist.pop()
-        closedlist.append(current)
+        current = min(openlist, key=lambda link: link.cost)
         if current == end:
             return get_path(current)
+        openlist.remove(current)
+        closedlist.append(current)
         for link in get_links(current):
-            if link in closedlist:
-                continue
-            elif link in openlist:
-                if current.cost + 1 < link.cost:
-                    openlist[link].parent = current
-                    openlist[link].cost = current.cost + 1
-            elif link.cost < 5:
-                openlist.append(link)
+            if link not in closedlist:
+                if link not in openlist:
+                    openlist.append(link)
 
 
 def main():
     start = Node("Fox")
-    end = Node("Dog", None)
+    end = Node("Cat")
     path = find_path(start, end)
     print(path)
 
